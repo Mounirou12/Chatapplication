@@ -49,7 +49,6 @@ public class Connexion {
             }
             return false;
         } catch (SQLException e) {
-            e.printStackTrace();
             return false;
         }
     }
@@ -108,6 +107,55 @@ public class Connexion {
             return false;
         }
     }
+
+     public static boolean passwordChange(int userId, String oldPassword, String newPassword, String confirmPassword) {
+
+        // ÉTAPE 1 : Vérifier si le nouveau mot de passe et la confirmation sont
+        // identiques
+        if (newPassword == null || !newPassword.equals(confirmPassword)) {
+            return false;
+        }
+        // Connexion à la base de données
+        try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD)) {
+
+            // ÉTAPE 2 : Vérifier si l'ancien mot de passe est correct
+            String sqlVerif = "SELECT passwordHash FROM Users WHERE id = ?";
+            try (PreparedStatement pstmtVerif = conn.prepareStatement(sqlVerif)) {
+                pstmtVerif.setInt(1, userId);
+
+                try (ResultSet rs = pstmtVerif.executeQuery()) {
+                    if (rs.next()) {
+                        String passwordStck = rs.getString("passwordHash");
+
+                        // Sécurité : Si vous utilisez du hac]hage (ex: BCrypt), utilisez :
+                        // !BCrypt.checkpw(ancienMdp, mdpStocke)
+                        if (!BCrypt.checkpw(oldPassword, passwordStck)) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            }
+
+            // ÉTAPE 3 : Mettre à jour le mot de passe dans la base de données
+            String sqlUpdate = "UPDATE Users SET passwordHash = ? WHERE id = ?";
+            try (PreparedStatement pstmtUpdate = conn.prepareStatement(sqlUpdate)) {
+                // Sécurité : Dans un vrai projet, hachez "nouveauMdp" avant de l'injecter (ex:
+                // BCrypt.hashpw(...))
+                pstmtUpdate.setString(1, BCrypt.hashpw(newPassword, BCrypt.gensalt()));
+                pstmtUpdate.setInt(2, userId);
+
+                int lignesModifiees = pstmtUpdate.executeUpdate();
+                return lignesModifiees > 0;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erreur SQL : " + e.getMessage());
+            return false;
+        }
+    }
+
 
 
 }
