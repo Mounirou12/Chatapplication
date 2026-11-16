@@ -53,7 +53,7 @@ public class Connexion {
         }
     }
 
-     public static boolean connexion(String identifiant, String passwordHash) {
+    public static boolean connexion(String identifiant, String passwordHash) {
         // 1. On cherche l'utilisateur par email OU firstName (sans le mot de passe)
         String queryCn = "SELECT id,firstName,lastName,email,phone,dateNaissance,sexe,adresse,passwordHash FROM Users "
                 + "WHERE email = ? OR firstName = ?";
@@ -91,7 +91,6 @@ public class Connexion {
         }
     }
 
-
     public static boolean updateProfilUser(int id, String firstName, String lastName, String email, String phone) {
         String queryUPU = "UPDATE Users SET firstName=?,lastName=?,email=?,phone=? WHERE id=?";
         try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
@@ -108,7 +107,7 @@ public class Connexion {
         }
     }
 
-     public static boolean passwordChange(int userId, String oldPassword, String newPassword, String confirmPassword) {
+    public static boolean passwordChange(int userId, String oldPassword, String newPassword, String confirmPassword) {
 
         // ÉTAPE 1 : Vérifier si le nouveau mot de passe et la confirmation sont
         // identiques
@@ -155,7 +154,5 @@ public class Connexion {
             return false;
         }
     }
-
-
 
 }
