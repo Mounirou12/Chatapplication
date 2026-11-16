@@ -93,4 +93,21 @@ public class Connexion {
     }
 
 
+    public static boolean updateProfilUser(int id, String firstName, String lastName, String email, String phone) {
+        String queryUPU = "UPDATE Users SET firstName=?,lastName=?,email=?,phone=? WHERE id=?";
+        try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                PreparedStatement stmt = conn.prepareStatement(queryUPU)) {
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
+            stmt.setString(3, email);
+            stmt.setString(4, phone);
+            stmt.setInt(5, id);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("Erreur lors de la vérification en base de données : " + e.getMessage());
+            return false;
+        }
+    }
+
+
 }
