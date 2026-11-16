@@ -1,6 +1,7 @@
 package com.project.controlleur;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -49,6 +50,44 @@ public class Connexion {
             return false;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
+        }
+    }
+
+     public static boolean connexion(String identifiant, String passwordHash) {
+        // 1. On cherche l'utilisateur par email OU firstName (sans le mot de passe)
+        String queryCn = "SELECT id,firstName,lastName,email,phone,dateNaissance,sexe,adresse,passwordHash FROM Users "
+                + "WHERE email = ? OR firstName = ?";
+        try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                PreparedStatement stmt = conn.prepareStatement(queryCn)) {
+
+            stmt.setString(1, identifiant); // Pour l'email
+            stmt.setString(2, identifiant); // Pour le prénom seul
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String hasCode = rs.getString("passwordHash");
+                    if (BCrypt.checkpw(passwordHash, hasCode)) {
+                        Date sqlDateNaissance = rs.getDate("dateNaissance");
+                        LocalDate dateNaissance = (sqlDateNaissance != null)
+                                ? sqlDateNaissance.toLocalDate()
+                                : null;
+                        Session.setCurrentUser(
+                                rs.getInt("id"),
+                                rs.getString("firstName"),
+                                rs.getString("lastName"),
+                                rs.getString("email"),
+                                rs.getString("phone"),
+                                dateNaissance,
+                                rs.getString("sexe"),
+                                rs.getString("adresse"));
+                        return true;
+                    }
+                }
+                return false;
+            }
+        } catch (SQLException e) {
+            System.out.println("Erreur lors de la vérification en base de données : " + e.getMessage());
             return false;
         }
     }
