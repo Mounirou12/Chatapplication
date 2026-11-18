@@ -1,7 +1,6 @@
 package com.project.controlleur;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -17,8 +16,8 @@ public class Connexion {
     private static final String PASSWORD = "agnila10";
 
     public static boolean insertUser(String username, String passwordHash,
-            String displayName, boolean is_online, LocalDate lastSeen) {
-        is_online = false;
+            String displayName, LocalDate lastSeen) {
+        boolean is_online = false;
         String queryCR = "INSERT INTO users(username,password_hash,display_name,is_online,last_seen) VALUES (?,?,?,?,?)";
         try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
                 PreparedStatement stmt = conn.prepareStatement(queryCR, Statement.RETURN_GENERATED_KEYS)) {
@@ -31,25 +30,23 @@ public class Connexion {
             if (rowsAffected > 0) {
                 try (ResultSet rs = stmt.getGeneratedKeys()) {
                     if (rs.next()) {
-                        int newUserId = rs.getInt(1);
-                        Session.setCurrentUser(
-                                newUserId,
-                                username,
-                                displayName,
-                                lastSeen);
+                        int newUserId = rs.getInt(1); // L'ID du nouvel utilisateur
+                        System.out.println("Utilisateur inséré avec succès ! ID : " + newUserId);
                         return true; // Succès total
                     }
                 }
             }
             return false;
         } catch (SQLException e) {
+            e.printStackTrace();
             return false;
         }
     }
 
-    public static boolean connexion(String identifiant, String passwordHash) {
+
+    public static int connexion(String identifiant, String passwordHash) {
         // 1. On cherche l'utilisateur par email OU firstName (sans le mot de passe)
-        String queryCn = "SELECT id,username,password_hash,display_name,is_online,last_seen FROM Users "
+        String queryCn = "SELECT id,username,password_hash,display_name,is_online,last_seen FROM users "
                 + "WHERE username = ? ";
         try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
                 PreparedStatement stmt = conn.prepareStatement(queryCn)) {
@@ -60,28 +57,18 @@ public class Connexion {
                 if (rs.next()) {
                     String hasCode = rs.getString("password_hash");
                     if (BCrypt.checkpw(passwordHash, hasCode)) {
-                        Date sqlLastSeen = rs.getDate("last_seen");
-                        LocalDate lastseeen = (sqlLastSeen != null)
-                                ? sqlLastSeen.toLocalDate()
-                                : null;
                         int userId = rs.getInt("id");
-                        String username = rs.getString("username");
-                        String sqlLastseen = rs.getString("display_name");
 
                         mettreAJourStatusConnexion(conn, userId, true);
-                        Session.setCurrentUser(
-                                userId,
-                                username,
-                                sqlLastseen,
-                                lastseeen);
-                        return true;
+
+                        return userId;
                     }
                 }
-                return false;
+                return -1;
             }
         } catch (SQLException e) {
             System.out.println("Erreur lors de la vérification en base de données : " + e.getMessage());
-            return false;
+            return -1;
         }
     }
 
@@ -94,6 +81,21 @@ public class Connexion {
             stmt.executeUpdate();
         } catch (SQLException e) {
             System.out.println("Erreur lors de la mise à jour du statut en ligne : " + e.getMessage());
+        }
+    }
+
+    // Dans votre classe ChatDB (ou équivalent)
+    public static void mettreAJourStatusConnexionParId(int userId, boolean isOnline) {
+        String query = isOnline
+                ? "UPDATE users SET is_online = TRUE WHERE id = ?"
+                : "UPDATE users SET is_online = FALSE, last_seen = CURRENT_DATE WHERE id = ?";
+
+        try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Erreur maj statut : " + e.getMessage());
         }
     }
 
@@ -175,6 +177,10 @@ public class Connexion {
         } catch (SQLException e) {
             System.out.println("Erreur lors de la déconnexion : " + e.getMessage());
         }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(insertUser("monor12", "agnila10", "Omochalewa", LocalDate.now()));
     }
 
 }
