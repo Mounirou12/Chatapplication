@@ -161,4 +161,20 @@ public class Connexion {
         }
     }
 
+    public static void deconnexion(int userId) {
+        String queryDC = "UPDATE users SET is_online = FALSE, last_seen = CURRENT_DATE WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                PreparedStatement stmt = conn.prepareStatement(queryDC)) {
+
+            stmt.setInt(1, userId);
+            stmt.executeUpdate();
+
+            // Nettoyer la session locale
+            Session.clear(); // ou Session.setCurrentUser(null, null, null, null)
+
+        } catch (SQLException e) {
+            System.out.println("Erreur lors de la déconnexion : " + e.getMessage());
+        }
+    }
+
 }
