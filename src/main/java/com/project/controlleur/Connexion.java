@@ -16,19 +16,17 @@ public class Connexion {
     private static final String USERNAME = "mounir";
     private static final String PASSWORD = "agnila10";
 
-    public static boolean insertUser(String firstName, String lastName, String email, String passwordHash,
-            String phone, LocalDate dateNaissance, String sexe, String adresse) {
-        String queryCR = "INSERT INTO Users(firstName,lastName,email,passwordHash,phone,dateNaissance,sexe,adresse) VALUES (?,?,?,?,?,?,?,?)";
+    public static boolean insertUser(String username, String passwordHash,
+            String displayName, boolean is_online, LocalDate lastSeen) {
+        is_online = false;
+        String queryCR = "INSERT INTO users(username,password_hash,display_name,is_online,last_seen) VALUES (?,?,?,?,?)";
         try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
                 PreparedStatement stmt = conn.prepareStatement(queryCR, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, firstName);
-            stmt.setString(2, lastName);
-            stmt.setString(3, email);
-            stmt.setString(4, BCrypt.hashpw(passwordHash, BCrypt.gensalt()));
-            stmt.setString(5, phone);
-            stmt.setObject(6, dateNaissance);
-            stmt.setString(7, sexe);
-            stmt.setString(8, adresse);
+            stmt.setString(1, username);
+            stmt.setString(2, BCrypt.hashpw(passwordHash, BCrypt.gensalt()));
+            stmt.setString(3, displayName);
+            stmt.setBoolean(4, is_online);
+            stmt.setObject(5, lastSeen);
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected > 0) {
                 try (ResultSet rs = stmt.getGeneratedKeys()) {
@@ -36,13 +34,9 @@ public class Connexion {
                         int newUserId = rs.getInt(1);
                         Session.setCurrentUser(
                                 newUserId,
-                                firstName,
-                                lastName,
-                                email,
-                                phone,
-                                dateNaissance,
-                                sexe,
-                                adresse);
+                                username,
+                                displayName,
+                                lastSeen);
                         return true; // Succès total
                     }
                 }
@@ -55,31 +49,31 @@ public class Connexion {
 
     public static boolean connexion(String identifiant, String passwordHash) {
         // 1. On cherche l'utilisateur par email OU firstName (sans le mot de passe)
-        String queryCn = "SELECT id,firstName,lastName,email,phone,dateNaissance,sexe,adresse,passwordHash FROM Users "
-                + "WHERE email = ? OR firstName = ?";
+        String queryCn = "SELECT id,username,password_hash,display_name,is_online,last_seen FROM Users "
+                + "WHERE username = ? ";
         try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
                 PreparedStatement stmt = conn.prepareStatement(queryCn)) {
 
-            stmt.setString(1, identifiant); // Pour l'email
-            stmt.setString(2, identifiant); // Pour le prénom seul
+            stmt.setString(1, identifiant); // Pour le nom de l'utilisateur
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    String hasCode = rs.getString("passwordHash");
+                    String hasCode = rs.getString("password_hash");
                     if (BCrypt.checkpw(passwordHash, hasCode)) {
-                        Date sqlDateNaissance = rs.getDate("dateNaissance");
-                        LocalDate dateNaissance = (sqlDateNaissance != null)
-                                ? sqlDateNaissance.toLocalDate()
+                        Date sqlLastSeen = rs.getDate("last_seen");
+                        LocalDate lastseeen = (sqlLastSeen != null)
+                                ? sqlLastSeen.toLocalDate()
                                 : null;
+                        int userId = rs.getInt("id");
+                        String username = rs.getString("username");
+                        String sqlLastseen = rs.getString("display_name");
+
+                        mettreAJourStatusConnexion(conn, userId, true);
                         Session.setCurrentUser(
-                                rs.getInt("id"),
-                                rs.getString("firstName"),
-                                rs.getString("lastName"),
-                                rs.getString("email"),
-                                rs.getString("phone"),
-                                dateNaissance,
-                                rs.getString("sexe"),
-                                rs.getString("adresse"));
+                                userId,
+                                username,
+                                sqlLastseen,
+                                lastseeen);
                         return true;
                     }
                 }
@@ -88,6 +82,18 @@ public class Connexion {
         } catch (SQLException e) {
             System.out.println("Erreur lors de la vérification en base de données : " + e.getMessage());
             return false;
+        }
+    }
+
+    private static void mettreAJourStatusConnexion(Connection conn, int userId, boolean isOnline) {
+        String query = isOnline
+                ? "UPDATE users SET is_online = TRUE WHERE id = ?"
+                : "UPDATE users SET is_online = FALSE, last_seen = CURRENT_DATE WHERE id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Erreur lors de la mise à jour du statut en ligne : " + e.getMessage());
         }
     }
 
