@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Conversation {
     private static final String URL = "jdbc:mysql://127.0.0.1:3306/chat_app";
@@ -27,6 +29,27 @@ public class Conversation {
             System.out.println("Erreur création conversation : " + e.getMessage());
         }
         return -1;
+    }
+
+    public static List<String> conversationsUser(int usertId) {
+        List<String> groupes = new ArrayList<>();
+
+        String queryCL = "SELECT c.id, c.name "
+                + "FROM conversations c "
+                + "JOIN conversation_participants cp ON c.id = cp.conversation_id"
+                + "WHERE cp.user_id = ?";
+        try (Connection conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                PreparedStatement stmt = conn.prepareStatement(queryCL)) {
+            stmt.setInt(1, usertId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    groupes.add(rs.getString("name"));
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Erreur récupération conversations : " + e.getMessage());
+        }
+        return groupes;
     }
 
 }
