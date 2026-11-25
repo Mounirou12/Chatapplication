@@ -16,7 +16,7 @@ public class Main {
         });
         serverThread.start();
 
-        Thread.sleep(1000);
+        Thread.sleep(100);
 
         URI serverUri = new URI("ws://localhost:" + port);
 
